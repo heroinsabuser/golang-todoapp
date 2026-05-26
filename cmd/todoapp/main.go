@@ -8,17 +8,19 @@ import (
 	"syscall"
 
 	core_logger "github.com/heroinsabuser/golang-todoapp/internal/core/logger"
+	core_postgres_pool "github.com/heroinsabuser/golang-todoapp/internal/core/repository/postgres/pool"
 	core_http_middleware "github.com/heroinsabuser/golang-todoapp/internal/core/transport/http/middleware"
 	core_http_server "github.com/heroinsabuser/golang-todoapp/internal/core/transport/http/server"
+	users_postgres_repository "github.com/heroinsabuser/golang-todoapp/internal/features/users/repository/postgres"
+	users_service "github.com/heroinsabuser/golang-todoapp/internal/features/users/service"
 	users_transport_http "github.com/heroinsabuser/golang-todoapp/internal/features/users/transport/http"
 	"go.uber.org/zap"
 )
 
-
-func main()  {
+func main() {
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
-		syscall.SIGINT, 
+		syscall.SIGINT,
 		syscall.SIGTERM,
 	)
 	defer cancel()
@@ -33,24 +35,29 @@ func main()  {
 
 	defer logger.Close()
 
-	logger.Debug("Starting todo app")
+	logger.Debug("init postgres pool")
+	pool, err := core_postgres_pool.NewConnectionPool(ctx, core_postgres_pool.NewConfigMust())
+	if err != nil {
+		logger.Fatal("failed to init app postgres pool:", zap.Error(err))
+	}
+	defer pool.Close()
 
-	usersTransportHTTP := users_transport_http.NewUsersHTTPHandler(nil)
+	logger.Debug("init feature", zap.String("feature", "users"))
+	usersRepository := users_postgres_repository.NewUsersRepository(pool)
+	usersService := users_service.NewUsersService(usersRepository)
+	usersTransportHTTP := users_transport_http.NewUsersHTTPHandler(usersService)
 
-	usersRoutes := usersTransportHTTP.Routes()
-
-	apiVersionRouter := core_http_server.NewAPIVersionRouter(core_http_server.APIVersionV1)
-	apiVersionRouter.RegisterRoutes(usersRoutes...)
-	
+	logger.Debug("init http server")
 	httpServer := core_http_server.NewHTTPServer(
-		core_http_server.NewConfigMust(), 
+		core_http_server.NewConfigMust(),
 		logger,
 		core_http_middleware.RequestID(),
 		core_http_middleware.Logger(logger),
 		core_http_middleware.Panic(),
 		core_http_middleware.Trace(),
 	)
-
+	apiVersionRouter := core_http_server.NewAPIVersionRouter(core_http_server.APIVersionV1)
+	apiVersionRouter.RegisterRoutes(usersTransportHTTP.Routes()...)
 	httpServer.RegisterAPIRouters(apiVersionRouter)
 
 	if err := httpServer.Run(ctx); err != nil {

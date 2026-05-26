@@ -12,8 +12,8 @@ env-down:
 env-cleanup:
 	@read -p "Отчистить все volume проекта? [y/n]: " ans; \
 	if [ "$$ans" = "y" ]; then \
-		docker compose down todoapp-postgres; \
-		rm -rf out/pgdata; \
+		docker compose down todoapp-postgres port-forwarder && \
+		rm -rf out/pgdata && \
 		echo "Отчистка завершена"; \
 	else \
 		echo "Отчистка отменена"; \
@@ -54,5 +54,6 @@ migrate-action:
 
 todoapp-run:
 	@export LOGGER_FOLDER=$(PROJECT_ROOT)/out/logs && \
+	export POSTGRES_HOST=localhost && \
 	go mod tidy && \
 	go run cmd/todoapp/main.go
