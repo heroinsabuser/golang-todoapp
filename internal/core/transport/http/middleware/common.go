@@ -13,12 +13,11 @@ import (
 
 const requestIdHeader = "X-Request-ID"
 
-
 func RequestID() Middleware {
-	return  func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestId := r.Header.Get(requestIdHeader)
-			if requestId == ""{
+			if requestId == "" {
 				requestId = uuid.NewString()
 			}
 
@@ -47,7 +46,7 @@ func Logger(log *core_logger.Logger) Middleware {
 	}
 }
 
-func Panic() Middleware{
+func Panic() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -67,7 +66,7 @@ func Panic() Middleware{
 	}
 }
 
-func Trace() Middleware{
+func Trace() Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -87,7 +86,7 @@ func Trace() Middleware{
 
 			log.Debug(
 				"<<< done HTTP request",
-				zap.Int("status_code", rw.GetStatusCodeOrPanic()),
+				zap.Int("status_code", rw.GetStatusCode()),
 				zap.Duration("latency", time.Since(before)),
 			)
 		})
