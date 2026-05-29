@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	core_logger "github.com/heroinsabuser/golang-todoapp/internal/core/logger"
+	core_http_request "github.com/heroinsabuser/golang-todoapp/internal/core/transport/http/request"
 	core_http_response "github.com/heroinsabuser/golang-todoapp/internal/core/transport/http/response"
-	core_http_utils "github.com/heroinsabuser/golang-todoapp/internal/core/transport/http/utils"
 )
 
 type GetUsersResponse []UserResponse
@@ -30,11 +30,15 @@ func (h *UsersHTTPHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func getLimitOffsetQueryParams(r *http.Request) (*int, *int, error) {
-	offset, err := core_http_utils.GetIntQueryParams(r, "offset")
+	const (
+		limitParam  = "limit"
+		offsetParam = "offset"
+	)
+	offset, err := core_http_request.GetIntQueryParams(r, offsetParam)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query param offset: %w", err)
 	}
-	limit, err := core_http_utils.GetIntQueryParams(r, "limit")
+	limit, err := core_http_request.GetIntQueryParams(r, limitParam)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query param limit: %w", err)
 	}

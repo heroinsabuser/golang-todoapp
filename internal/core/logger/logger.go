@@ -11,14 +11,24 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type Logger struct{
+type Logger struct {
 	*zap.Logger
 
 	file *os.File
 }
 
-func FromContext (ctx context.Context) *Logger {
-	log, ok := ctx.Value("log").(*Logger)
+type loggerContextKey struct{}
+
+var (
+	key = loggerContextKey{}
+)
+
+func ToContext(ctx context.Context, logger *Logger) context.Context {
+	return context.WithValue(ctx, key, logger)
+}
+
+func FromContext(ctx context.Context) *Logger {
+	log, ok := ctx.Value(key).(*Logger)
 	if !ok {
 		panic("no logger in context")
 	}
@@ -27,18 +37,18 @@ func FromContext (ctx context.Context) *Logger {
 
 func NewLogger(config Config) (*Logger, error) {
 	zapLvl := zap.NewAtomicLevel()
-	if err:= zapLvl.UnmarshalText([]byte(config.Level)); err != nil {
+	if err := zapLvl.UnmarshalText([]byte(config.Level)); err != nil {
 		return nil, fmt.Errorf("unmarshal log level %w", err)
 	}
 
-	if err:= os.MkdirAll(config.Folder, 0755); err != nil {
+	if err := os.MkdirAll(config.Folder, 0755); err != nil {
 		return nil, fmt.Errorf("mkdir log folder: %w", err)
 	}
 
 	timestamp := time.Now().UTC().Format("2006-01-02T15-04-05.000000")
 	logFilePath := filepath.Join(config.Folder, fmt.Sprintf("%s.log", timestamp))
 
-	logfile, err := os.OpenFile(logFilePath, os.O_CREATE | os.O_WRONLY, 0644)
+	logfile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
 		return nil, fmt.Errorf("open log file: %w", err)
@@ -56,20 +66,20 @@ func NewLogger(config Config) (*Logger, error) {
 
 	return &Logger{
 		Logger: zapLogger,
-		file: logfile,
+		file:   logfile,
 	}, nil
 }
 
-func (logger *Logger) With (field ...zap.Field) *Logger {
+func (logger *Logger) With(field ...zap.Field) *Logger {
 	return &Logger{
 		Logger: logger.Logger.With(field...),
-		file: logger.file,
+		file:   logger.file,
 	}
 
 }
 
 func (logger *Logger) Close() {
 	if err := logger.file.Close(); err != nil {
-		fmt.Println("failed to close logger:",err )
+		fmt.Println("failed to close logger:", err)
 	}
 }
